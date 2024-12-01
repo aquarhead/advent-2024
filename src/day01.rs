@@ -1,8 +1,6 @@
-pub fn solve(input: &str) -> (u64, u64) {
-  (part1(input), part2(input))
-}
+use itertools::Itertools;
 
-fn part1(input: &str) -> u64 {
+pub fn solve(input: &str) -> (u64, u64) {
   let mut left = Vec::new();
   let mut right = Vec::new();
   for l in input.trim().lines() {
@@ -12,17 +10,23 @@ fn part1(input: &str) -> u64 {
   }
 
   left.sort();
-  right.sort();
+  let mut r1 = right.clone();
+  r1.sort();
 
-  left
+  let p1 = left
+    .clone()
     .into_iter()
-    .zip(right.into_iter())
+    .zip(r1.into_iter())
     .map(|(x, y)| x.abs_diff(y))
-    .sum()
-}
+    .sum();
 
-fn part2(input: &str) -> u64 {
-  0
+  let r2 = right.into_iter().counts();
+  let p2 = left
+    .into_iter()
+    .map(|x| x * r2.get(&x).map(|y| *y as u64).unwrap_or(0))
+    .sum();
+
+  (p1, p2)
 }
 
 #[cfg(test)]
@@ -40,6 +44,6 @@ mod tests {
 3   3
 ";
 
-    assert_eq!((11, 0), solve(input));
+    assert_eq!((11, 31), solve(input));
   }
 }
