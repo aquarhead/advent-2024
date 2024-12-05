@@ -16,10 +16,18 @@ impl Rule {
     }
   }
 
-  fn valid(&self, pos: &HashMap<u32, usize>) -> bool {
+  fn get_pos(&self, pos: &HashMap<u32, usize>) -> Option<(usize, usize)> {
     match (pos.get(&self.front), pos.get(&self.back)) {
-      (Some(a), Some(b)) => a < b,
-      _ => true,
+      (Some(a), Some(b)) => Some((*a, *b)),
+      _ => None,
+    }
+  }
+
+  fn valid(&self, pos: &HashMap<u32, usize>) -> bool {
+    if let Some((a, b)) = self.get_pos(pos) {
+      a < b
+    } else {
+      true
     }
   }
 
@@ -35,7 +43,6 @@ impl Rule {
 }
 
 pub fn solve(input: &str) -> (u32, u32) {
-  //
   let mut parts = input.split("\n\n");
   let rules: Vec<_> = parts.next().unwrap().lines().map(Rule::from_str).collect();
   let updates: Vec<_> = parts
@@ -65,7 +72,6 @@ pub fn solve(input: &str) -> (u32, u32) {
         acc.insert(*page, idx);
         acc
       });
-
       rules.iter().any(|r| !r.valid(&page_pos))
     })
     .map(|u| {
@@ -77,10 +83,43 @@ pub fn solve(input: &str) -> (u32, u32) {
           Ordering::Equal
         }
       });
-
       update[(update.len() - 1) / 2]
     })
     .sum();
+
+  let p2_alt = updates
+    .par_iter()
+    .filter_map(|u| {
+      let mut update = u.clone();
+      let mut page_pos = update.iter().enumerate().fold(HashMap::new(), |mut acc, (idx, page)| {
+        acc.insert(*page, idx);
+        acc
+      });
+
+      let mut invalid = false;
+
+      'outer: loop {
+        for r in rules.iter() {
+          if !r.valid(&page_pos) {
+            let (a, b) = r.get_pos(&page_pos).unwrap();
+            update.swap(a, b);
+            page_pos = update.iter().enumerate().fold(HashMap::new(), |mut acc, (idx, page)| {
+              acc.insert(*page, idx);
+              acc
+            });
+
+            invalid = true;
+            continue 'outer;
+          }
+        }
+        break;
+      }
+
+      invalid.then(|| update[(update.len() - 1) / 2])
+    })
+    .sum();
+
+  assert_eq!(p2, p2_alt);
 
   (p1, p2)
 }
