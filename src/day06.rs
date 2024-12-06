@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::HashSet;
 
@@ -68,37 +67,28 @@ pub fn solve(input: &str) -> (usize, usize) {
 
   let inside = |p: Pos| -> bool { p.0 >= 0 && p.0 <= row_max && p.1 >= 0 && p.1 <= col_max };
 
-  let p1 = {
-    let mut pos = start_pos;
-    let mut dir = start_dir;
-    let mut visited = HashSet::new();
+  let mut pos = start_pos;
+  let mut dir = start_dir;
+  let mut visited = HashSet::new();
 
-    while inside(pos) {
-      visited.insert(pos.clone());
+  while inside(pos) {
+    visited.insert(pos.clone());
 
-      let np = dir.forward(&pos);
+    let np = dir.forward(&pos);
 
-      if obstructions.contains(&np) {
-        dir.turn_right();
-      } else {
-        pos = np;
-      }
+    if obstructions.contains(&np) {
+      dir.turn_right();
+    } else {
+      pos = np;
     }
-
-    visited.len()
-  };
+  }
 
   let p2 = {
-    let possible: Vec<_> = (0..=row_max)
-      .cartesian_product(0..=col_max)
-      .filter(|p| !(obstructions.contains(p) || *p == start_pos))
-      .collect();
-
-    possible
-      .into_par_iter()
+    visited
+      .par_iter()
       .filter(|new_ob_pos| {
         let mut no = obstructions.clone();
-        no.insert(*new_ob_pos);
+        no.insert(**new_ob_pos);
 
         let mut pos = start_pos;
         let mut dir = start_dir;
@@ -127,7 +117,7 @@ pub fn solve(input: &str) -> (usize, usize) {
       .count()
   };
 
-  (p1, p2)
+  (visited.len(), p2)
 }
 
 #[cfg(test)]
