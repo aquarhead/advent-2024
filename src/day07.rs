@@ -36,7 +36,6 @@ fn valid_p1(tv: u64, nums: &Vec<u64>) -> Option<u64> {
       for n0 in vs.iter().copied() {
         nvs.insert(n0 + n);
         nvs.insert(n0 * n);
-        nvs.insert(format!("{}{}", n0, n).parse().unwrap());
       }
       vs = nvs;
     }
