@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use std::collections::HashMap;
 use std::ops::BitXor;
 
 #[derive(Debug, Clone, Default)]
@@ -18,19 +17,6 @@ impl Computer {
 
       self.step(*opcode, *operand);
     }
-  }
-
-  fn recur(&mut self, prog: &Vec<u8>) -> bool {
-    while let Some(opcode) = prog.get(self.ip) {
-      let operand = prog.get(self.ip + 1).unwrap();
-      self.step(*opcode, *operand);
-
-      if self.output.len() > prog.len() || self.output.iter().zip(prog.iter()).any(|(x, y)| x != y) {
-        return false;
-      }
-    }
-
-    self.output.len() == prog.len() && self.output.iter().zip(prog.iter()).all(|(x, y)| x == y)
   }
 
   fn step(&mut self, opcode: u8, operand: u8) {
