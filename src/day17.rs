@@ -130,7 +130,15 @@ pub fn solve(input: &str) -> (String, u64) {
             ..Default::default()
           };
           comp.run_program(&program);
-          if comp.output.len() == ml && program.iter().rev().take(ml).zip(comp.output).all(|(x, y)| *x == y) {
+          if comp.output.len() == ml
+            && program
+              .iter()
+              .rev()
+              .take(ml)
+              .rev()
+              .zip(comp.output)
+              .all(|(x, y)| *x == y)
+          {
             new_search.push(t);
           }
         }
