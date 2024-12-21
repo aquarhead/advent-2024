@@ -20,10 +20,11 @@ mod day17;
 mod day18;
 mod day19;
 mod day20;
+mod day21;
 
 fn main() {
-  let content = std::fs::read_to_string("inputs/day20.txt").expect("read file");
-  let (p1, p2) = day20::solve(content.trim());
+  let content = std::fs::read_to_string("inputs/day21.txt").expect("read file");
+  let (p1, p2) = day21::solve(content.trim());
 
   println!("part1: {}", p1);
   println!("part2: {}", p2);
