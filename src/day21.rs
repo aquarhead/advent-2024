@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use rayon::prelude::*;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 enum DPad {
@@ -246,8 +246,46 @@ fn dpad(src: DPad, dst: DPad) -> Vec<Vec<DPad>> {
   }
 }
 
+#[derive(Debug, Default)]
+struct Cache {
+  cache: HashMap<(Vec<DPad>, u8), usize>,
+}
+
+impl Cache {
+  fn shortest(&mut self, s: &Vec<DPad>, depth: u8) -> usize {
+    let mut s2 = s.clone();
+    s2.insert(0, Activate);
+
+    if let Some(v) = self.cache.get(&(s2.clone(), depth)) {
+      *v
+    } else if depth == 1 {
+      s2.iter()
+        .tuple_windows()
+        .map(|(i, j)| dpad(*i, *j).first().unwrap().len())
+        .sum()
+    } else {
+      let ret: usize = s2
+        .iter()
+        .tuple_windows()
+        .map(|(i, j)| {
+          //
+          dpad(*i, *j)
+            .into_iter()
+            .map(|path| self.shortest(&path, depth - 1))
+            .min()
+            .unwrap()
+        })
+        .sum();
+
+      self.cache.insert((s2, depth), ret);
+
+      ret
+    }
+  }
+}
+
 pub fn solve(input: &str) -> (usize, usize) {
-  let p1 = input
+  let dpads: Vec<_> = input
     .lines()
     .map(|line| {
       let code: usize = line[0..(line.len() - 1)].parse().unwrap();
@@ -257,7 +295,7 @@ pub fn solve(input: &str) -> (usize, usize) {
         n => np_seq.push(n as u8 - '0' as u8),
       });
 
-      let dp1: Possibilities = np_seq
+      let mut dp: Possibilities = np_seq
         .into_iter()
         .tuple_windows()
         .map(|(i, j)| num_pad(i, j))
@@ -265,101 +303,34 @@ pub fn solve(input: &str) -> (usize, usize) {
         .map(|vs| vs.concat())
         .collect();
 
-      let dp1_ml = dp1.iter().map(|s| s.len()).min().unwrap();
+      let min_len = dp.iter().map(|s| s.len()).min().unwrap();
 
-      dbg!(line);
-      for p in dp1.iter() {
-        if p.len() == dp1_ml {
-          dbg!(p);
-        }
-      }
+      dp = dp.into_iter().filter(|p| p.len() == min_len).collect();
+      (code, dp)
+    })
+    .collect();
 
-      let dp2: Possibilities = dp1
-        .into_iter()
-        .filter(|s| s.len() == dp1_ml)
-        .flat_map(|s| {
-          let mut s2 = s.clone();
-          s2.insert(0, Activate);
-          s2.iter()
-            .tuple_windows()
-            .map(|(i, j)| dpad(*i, *j))
-            .multi_cartesian_product()
-            .map(|vs| vs.concat())
-            .collect::<Possibilities>()
-        })
-        .unique()
-        .collect();
+  let p1 = dpads
+    .iter()
+    .map(|(code, dp)| {
+      let mut cache = Cache::default();
+      let ml = dp.into_iter().map(|p| cache.shortest(&p, 2)).min().unwrap();
 
-      let dp2_ml = dp2.iter().map(|s| s.len()).min().unwrap();
-
-      let human: Possibilities = dp2
-        .into_iter()
-        .filter(|s| s.len() == dp2_ml)
-        .flat_map(|s| {
-          let mut s2 = s.clone();
-          s2.insert(0, Activate);
-          s2.iter()
-            .tuple_windows()
-            .map(|(i, j)| dpad(*i, *j))
-            .multi_cartesian_product()
-            .map(|vs| vs.concat())
-            .collect::<Possibilities>()
-        })
-        .unique()
-        .collect();
-
-      let human_ml = human.iter().map(|s| s.len()).min().unwrap();
-
-      code * human_ml
+      code * ml
     })
     .sum();
 
-  // let lines: Vec<_> = input.lines().collect();
-  // let p2 = lines
-  //   .into_iter()
-  //   .map(|line| {
-  //     let code: usize = line[0..(line.len() - 1)].parse().unwrap();
-  //     let mut np_seq = vec![NUM_ACTIVATE];
-  //     line.chars().for_each(|ch| match ch {
-  //       'A' => np_seq.push(NUM_ACTIVATE),
-  //       n => np_seq.push(n as u8 - '0' as u8),
-  //     });
+  let p2 = dpads
+    .iter()
+    .map(|(code, dp)| {
+      let mut cache = Cache::default();
+      let ml = dp.into_iter().map(|p| cache.shortest(&p, 25)).min().unwrap();
 
-  //     let mut dp: Possibilities = np_seq
-  //       .into_iter()
-  //       .tuple_windows()
-  //       .map(|(i, j)| num_pad(i, j))
-  //       .multi_cartesian_product()
-  //       .map(|vs| vs.concat())
-  //       .collect();
+      code * ml
+    })
+    .sum();
 
-  //     let mut min_len = dp.iter().map(|s| s.len()).min().unwrap();
-
-  //     for n in 0..25 {
-  //       dbg!(n);
-  //       dp = dp
-  //         .into_iter()
-  //         .filter(|s| s.len() == min_len)
-  //         .flat_map(|s| {
-  //           let mut s2 = s.clone();
-  //           s2.insert(0, Activate);
-  //           s2.iter()
-  //             .tuple_windows()
-  //             .map(|(i, j)| dpad(*i, *j))
-  //             .multi_cartesian_product()
-  //             .map(|vs| vs.concat())
-  //             .collect::<Possibilities>()
-  //         })
-  //         .collect();
-
-  //       min_len = dp.iter().map(|s| s.len()).min().unwrap();
-  //     }
-
-  //     code * min_len
-  //   })
-  //   .sum();
-
-  (p1, 0)
+  (p1, p2)
 }
 
 #[cfg(test)]
@@ -391,6 +362,6 @@ mod tests {
 379A
 ";
 
-    assert_eq!((126384, 0), solve(input.trim()));
+    assert_eq!(126384, solve(input.trim()).0);
   }
 }
