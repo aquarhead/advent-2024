@@ -1,67 +1,47 @@
 use itertools::Itertools;
-use pathfinding::undirected::connected_components::connected_components;
 use std::collections::HashSet;
 
 pub fn solve(input: &str) -> (usize, String) {
   let conns: HashSet<_> = input.lines().map(|line| line.split_once('-').unwrap()).collect();
-  let nodes: Vec<_> = conns.iter().flat_map(|(a, b)| [*a, *b]).unique().collect();
-
-  let p1 = nodes
+  let nodes: Vec<_> = conns
     .iter()
+    .flat_map(|(a, b)| [a.to_string(), b.to_string()])
+    .unique()
+    .collect();
+
+  let mut lans: Vec<_> = nodes
+    .iter()
+    .cloned()
     .combinations(3)
     .filter(|g| {
-      let a = *g[0];
-      let b = *g[1];
-      let c = *g[2];
-      (conns.contains(&(a, b)) || conns.contains(&(b, a)))
-        && (conns.contains(&(a, c)) || conns.contains(&(c, a)))
-        && (conns.contains(&(b, c)) || conns.contains(&(c, b)))
-        && (a.starts_with('t') || b.starts_with('t') || c.starts_with('t'))
+      g.iter()
+        .combinations(2)
+        .all(|c| conns.contains(&(c[0], c[1])) || conns.contains(&(c[1], c[0])))
     })
-    .count();
+    .collect();
 
-  let mut p2 = connected_components(&nodes, |n| {
-    conns
-      .iter()
-      .filter_map(|(a, b)| {
-        if a == n {
-          Some(b)
-        } else if b == n {
-          Some(a)
-        } else {
-          None
-        }
-      })
-      .cloned()
-      .collect::<Vec<_>>()
-  })
-  .into_iter()
-  .map(|party| {
-    party
-      .iter()
-      .powerset()
-      .reduce(|best, cur| {
-        if cur.len() <= best.len() {
-          best
-        } else if cur
-          .iter()
-          .combinations(2)
-          .all(|p| conns.contains(&(p[0], p[1])) || conns.contains(&(p[1], p[0])))
-        {
-          cur
-        } else {
-          best
-        }
-      })
-      .unwrap()
+  let p1 = lans.iter().filter(|g| g.iter().any(|c| c.starts_with('t'))).count();
+
+  while lans.len() > 1 {
+    lans = lans
       .into_iter()
-      .map(|x| x.to_string())
-      .collect::<Vec<_>>()
-  })
-  .max_by_key(|x| x.len())
-  .unwrap();
+      .flat_map(|lan| {
+        let mut ret = Vec::new();
+        for n in nodes.iter() {
+          if !lan.contains(n) && lan.iter().all(|x| conns.contains(&(n, x)) || conns.contains(&(x, n))) {
+            let mut nl = lan.clone();
+            nl.push(n.clone());
+            nl.sort();
+            ret.push(nl);
+          }
+        }
+        ret
+      })
+      .unique()
+      .collect();
+  }
 
-  p2.sort();
+  let p2 = lans.get_mut(0).unwrap();
 
   (p1, p2.into_iter().join(","))
 }
