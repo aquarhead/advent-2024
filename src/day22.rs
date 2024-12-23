@@ -69,7 +69,6 @@ pub fn solve(input: &str) -> (isize, isize) {
     .max()
     .unwrap();
 
-  //
   (p1, p2)
 }
 

@@ -9,7 +9,6 @@ pub fn solve(input: &str) -> (usize, usize) {
   let mut end: Pos = (0, 0);
   input.lines().enumerate().for_each(|(row, line)| {
     line.char_indices().for_each(|(col, ch)| {
-      //
       let p: Pos = (row as i32, col as i32);
       if ch != '#' {
         track.insert(p);
