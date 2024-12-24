@@ -3,7 +3,9 @@ enum Input {
   Value(bool),
 }
 
-pub fn solve(input: &str) -> (usize, usize) {
+type Gates = Vec<(String, String, String, String)>;
+
+pub fn solve(input: &str) -> (usize, String) {
   let (init, gates_str) = input.split_once("\n\n").unwrap();
   let mut wires: Vec<_> = init
     .lines()
@@ -13,59 +15,186 @@ pub fn solve(input: &str) -> (usize, usize) {
     })
     .collect();
 
-  let mut gates: Vec<_> = gates_str
-    .lines()
-    .map(|line| {
-      //
-      let (input, output) = line.split_once(" -> ").unwrap();
-      let mut input = input.split_ascii_whitespace();
-      let a = Input::Wire(input.next().unwrap().to_string());
-      let op = match input.next().unwrap() {
-        "AND" => |a: bool, b: bool| -> bool { a & b },
-        "OR" => |a: bool, b: bool| -> bool { a || b },
-        "XOR" => |a: bool, b: bool| -> bool { a ^ b },
-        _ => panic!("invalid gate"),
-      };
-      let b = Input::Wire(input.next().unwrap().to_string());
-      (a, b, op, output.to_string())
-    })
-    .collect();
+  let p1 = {
+    let mut gates: Vec<_> = gates_str
+      .lines()
+      .map(|line| {
+        let (input, output) = line.split_once(" -> ").unwrap();
+        let mut input = input.split_ascii_whitespace();
+        let a = Input::Wire(input.next().unwrap().to_string());
+        let op = input.next().unwrap().to_string();
+        let b = Input::Wire(input.next().unwrap().to_string());
+        (a, b, op, output.to_string())
+      })
+      .collect();
 
-  let mut zwires = Vec::new();
+    let mut zwires = Vec::new();
 
-  while let Some((w, v)) = wires.pop() {
-    gates.iter_mut().for_each(|(a, b, op, out)| {
-      let mut got_input = false;
-      if let Input::Wire(x) = a {
-        if *x == w {
-          *a = Input::Value(v);
+    while let Some((w, v)) = wires.pop() {
+      gates.iter_mut().for_each(|(a, b, op, out)| {
+        let mut got_input = false;
+        if let Input::Wire(x) = a {
+          if *x == w {
+            *a = Input::Value(v);
+          }
+          got_input = true;
         }
-        got_input = true;
-      }
-      if let Input::Wire(x) = b {
-        if *x == w {
-          *b = Input::Value(v);
+        if let Input::Wire(x) = b {
+          if *x == w {
+            *b = Input::Value(v);
+          }
+          got_input = true
         }
-        got_input = true
-      }
-      if got_input {
-        if let Input::Value(x) = a {
-          if let Input::Value(y) = b {
-            let o = op(*x, *y);
-            wires.push((out.clone(), o));
-            if out.starts_with('z') {
-              zwires.push((out.clone(), o));
+        if got_input {
+          if let Input::Value(x) = a {
+            if let Input::Value(y) = b {
+              let o = match op.as_str() {
+                "AND" => *x & *y,
+                "OR" => *x || *y,
+                "XOR" => *x ^ *y,
+                _ => panic!("invalid gate"),
+              };
+              wires.push((out.clone(), o));
+              if out.starts_with('z') {
+                zwires.push((out.clone(), o));
+              }
             }
           }
         }
+      });
+    }
+
+    zwires.sort();
+    zwires.into_iter().rev().fold(0, |acc, (_, v)| (acc << 1) + v as usize)
+  };
+
+  let p2 = {
+    let mut gates: Vec<_> = gates_str
+      .lines()
+      .map(|line| {
+        let (input, output) = line.split_once(" -> ").unwrap();
+        let mut input = input.split_ascii_whitespace();
+        let a = input.next().unwrap().to_string();
+        let op = input.next().unwrap().to_string();
+        let b = input.next().unwrap().to_string();
+        (a, b, op, output.to_string())
+      })
+      .collect();
+
+    let find = |g: &Gates, a: &str, b: &str, op0: &str| -> Option<String> {
+      g.iter()
+        .find(|(x, y, op, _)| op == op0 && ((x == a && y == b) || (y == a && x == b)))
+        .map(|g| g.3.clone())
+    };
+    let find1 = |g: &Gates, a: &str, output: &str, op: &str| -> Option<String> {
+      g.iter().find_map(|(x, y, op0, output0)| {
+        if op == op0 && output == output0 {
+          if x == a {
+            return Some(y.clone());
+          }
+          if y == a {
+            return Some(x.clone());
+          }
+        }
+        None
+      })
+    };
+    let find2 = |g: &Gates, a: &str, op: &str| -> Option<_> {
+      g.iter().find_map(|(x, y, op0, output0)| {
+        if op == op0 {
+          if x == a {
+            return Some((y.clone(), output0.clone()));
+          }
+          if y == a {
+            return Some((x.clone(), output0.clone()));
+          }
+        }
+        None
+      })
+    };
+
+    let mut should_swap = Vec::new();
+    let mut swap = |gates: &mut Gates, o1: String, o2: String| {
+      should_swap.push(o1.clone());
+      should_swap.push(o2.clone());
+      gates.iter_mut().for_each(|(_, _, _, o)| {
+        if o == &o1 {
+          *o = o2.clone();
+        } else if o == &o2 {
+          *o = o1.clone();
+        }
+      });
+    };
+
+    {
+      let z0 = find(&gates, "x00", "y00", "XOR").unwrap();
+      if z0 != "z00" {
+        swap(&mut gates, z0, "z00".to_string());
       }
-    });
-  }
+    }
 
-  zwires.sort();
-  let p1 = zwires.into_iter().rev().fold(0, |acc, (_, v)| (acc << 1) + v as usize);
+    let mut carry = find(&gates, "x00", "y00", "AND").unwrap();
+    for n in 1..(init.lines().count() / 2) {
+      let x = format!("x{:02}", n);
+      let y = format!("y{:02}", n);
+      let z = format!("z{:02}", n);
+      let mut bit_xor = find(&gates, &x, &y, "XOR").unwrap();
 
-  (p1, 0)
+      // bit_xor ^ carry = z_n
+      if let Some(z_n) = find(&gates, &bit_xor, &carry, "XOR") {
+        if z_n != z {
+          swap(&mut gates, z.clone(), z_n.clone());
+        }
+      } else {
+        // check bit_xor
+        if let Some(bit_xor_check) = find1(&gates, &carry, &z, "XOR") {
+          if bit_xor != bit_xor_check {
+            swap(&mut gates, bit_xor.clone(), bit_xor_check.clone());
+            bit_xor = bit_xor_check.clone();
+          }
+        }
+
+        // check carry
+        if let Some(carry_check) = find1(&gates, &bit_xor, &z, "XOR") {
+          if carry != carry_check {
+            swap(&mut gates, carry.clone(), carry_check.clone());
+            carry = carry_check.clone();
+          }
+        }
+      }
+
+      // (bit_xor & carry) || bit_and = carry_next
+      let mut bit_and = find(&gates, &x, &y, "AND").unwrap();
+      let carry_next_left = find(&gates, &bit_xor, &carry, "AND").unwrap();
+      if let Some(carry_next) = find(&gates, &carry_next_left, &bit_and, "OR") {
+        carry = carry_next;
+      } else {
+        // check bit_and
+        if let Some((bit_and_check, carry_next)) = find2(&gates, &carry_next_left, "OR") {
+          if bit_and_check != bit_and {
+            swap(&mut gates, bit_and.clone(), bit_and_check.clone());
+            bit_and = bit_and_check.clone();
+            carry = carry_next;
+          }
+        }
+
+        // check left
+        if let Some((cnl_check, carry_next)) = find2(&gates, &bit_and, "OR") {
+          if cnl_check != carry_next_left {
+            swap(&mut gates, carry_next_left.clone(), cnl_check.clone());
+            carry = carry_next;
+          }
+        }
+      }
+    }
+
+    // the last bit should be carry
+
+    should_swap.sort();
+    should_swap.join(",")
+  };
+
+  (p1, p2)
 }
 
 #[cfg(test)]
@@ -87,7 +216,7 @@ x01 XOR y01 -> z01
 x02 OR y02 -> z02
 ";
 
-    assert_eq!((4, 0), solve(input.trim()));
+    assert_eq!(4, solve(input.trim()).0);
   }
 
   #[test]
@@ -142,6 +271,6 @@ tgd XOR rvg -> z12
 tnw OR pbm -> gnj
 ";
 
-    assert_eq!((2024, 0), solve(input.trim()));
+    assert_eq!(2024, solve(input.trim()).0);
   }
 }
