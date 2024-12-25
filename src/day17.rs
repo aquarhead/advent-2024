@@ -98,11 +98,7 @@ pub fn solve(input: &str) -> (String, u64) {
   };
 
   let p2 = {
-    let vec_to_input = |v: &Vec<u8>| -> u64 {
-      let j: Vec<_> = v.iter().map(|o| format!("{:03b}", o)).collect();
-
-      u64::from_str_radix(&j.join(""), 2).unwrap()
-    };
+    let vec_to_input = |v: &Vec<u8>| -> u64 { v.iter().fold(0, |acc, n| (acc << 3) + *n as u64) };
 
     let mut search: Vec<Vec<u8>> = vec![Vec::new()];
     for ml in 1..=program.len() {
